@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'gui.ui'
+# Form implementation generated from reading ui file '.\gui.ui'
 #
 # Created by: PyQt5 UI code generator 5.15.7
 #
@@ -810,6 +810,10 @@ class Ui_MainWindow(object):
         self.action_hint.setObjectName("action_hint")
         self.action_solve = QtWidgets.QAction(MainWindow)
         self.action_solve.setObjectName("action_solve")
+        self.action_generate = QtWidgets.QAction(MainWindow)
+        self.action_generate.setObjectName("action_generate")
+        self.menuSudoku.addAction(self.action_generate)
+        self.menuSudoku.addSeparator()
         self.menuSudoku.addAction(self.action_wipe)
         self.menuSudoku.addAction(self.action_validate)
         self.menuSudoku.addAction(self.action_hint)
@@ -923,3 +927,4 @@ class Ui_MainWindow(object):
         self.action_validate.setText(_translate("MainWindow", "Validate"))
         self.action_hint.setText(_translate("MainWindow", "Hint"))
         self.action_solve.setText(_translate("MainWindow", "Solve"))
+        self.action_generate.setText(_translate("MainWindow", "Generate"))

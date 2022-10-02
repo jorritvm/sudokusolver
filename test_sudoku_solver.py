@@ -1,4 +1,4 @@
-from game import Sudoku
+from sudoku_solver import Sudoku
 
 
 def test_position_to_identifiers():

@@ -1,10 +1,6 @@
 import sys
-
+import random
 from PyQt5.QtWidgets import QApplication, QMainWindow, QMessageBox
-
-# from PyQt5.QtCore import *
-# from PyQt5.QtGui import *
-
 from gui import Ui_MainWindow
 
 
@@ -31,6 +27,8 @@ class mainwindow(QMainWindow, Ui_MainWindow):
         """connects actions and buttons to the corresponding methods"""
         self.action_about.triggered.connect(self.about)
 
+        self.action_generate.triggered.connect(self.generate)
+
         self.action_wipe.triggered.connect(self.wipe)
         self.btn_wipe.pressed.connect(self.wipe)
 
@@ -52,6 +50,23 @@ class mainwindow(QMainWindow, Ui_MainWindow):
             does what its name says, quickly solve your sudoku.</p>
             <p>Author: Jorrit Vander Mynsbrugge</p>""",
         )
+
+    def generate(self):
+        reply = QMessageBox.question(
+            self,
+            "Wipe",
+            "Are you sure you want to generate a new random puzzle?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        if reply == QMessageBox.Yes:
+            self.wipe_unsafe()
+
+            lines = open("puzzles.txt").read().splitlines()
+            random_puzzle = list(random.choice(lines))
+            random_puzzle[:] = [x if x != "0" else "" for x in random_puzzle]
+
+            self.complete_sudoku(random_puzzle)
 
     def get_boxes(self):
         """fetches all the qt line edit widgets in a list"""
@@ -75,9 +90,12 @@ class mainwindow(QMainWindow, Ui_MainWindow):
             QMessageBox.No,
         )
         if reply == QMessageBox.Yes:
-            all_boxes = self.get_boxes()
-            for text_edit in all_boxes:
-                text_edit.clear()
+            self.wipe_unsafe()
+
+    def wipe_unsafe(self):
+        all_boxes = self.get_boxes()
+        for box in all_boxes:
+            box.clear()
 
     def validate(self):
         """validates the puzzle and reports to the user"""
@@ -108,7 +126,8 @@ class mainwindow(QMainWindow, Ui_MainWindow):
             self.show_invalid_message()
         else:
             idx, value = puzzle.hint()
-            print(f"position {idx} should get value {value}")  # todo: complete this
+            boxes = self.get_boxes()
+            boxes[idx].setText(value)
 
     def solve(self):
         """complets the puzzle automatically"""

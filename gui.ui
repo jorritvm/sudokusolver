@@ -1782,6 +1782,8 @@
     <property name="title">
      <string>Sudoku</string>
     </property>
+    <addaction name="action_generate"/>
+    <addaction name="separator"/>
     <addaction name="action_wipe"/>
     <addaction name="action_validate"/>
     <addaction name="action_hint"/>
@@ -1826,6 +1828,11 @@
   <action name="action_solve">
    <property name="text">
     <string>Solve</string>
+   </property>
+  </action>
+  <action name="action_generate">
+   <property name="text">
+    <string>Generate</string>
    </property>
   </action>
  </widget>
