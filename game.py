@@ -1,8 +1,10 @@
-from http.client import OK
-from turtle import pos
-from winreg import REG_EXPAND_SZ
-from PyQt5.QtWidgets import QMainWindow, QMessageBox
-from PyQt5.QtGui import QIntValidator
+import sys
+
+from PyQt5.QtWidgets import QApplication, QMainWindow, QMessageBox
+
+# from PyQt5.QtCore import *
+# from PyQt5.QtGui import *
+
 from gui import Ui_MainWindow
 
 
@@ -114,8 +116,20 @@ class mainwindow(QMainWindow, Ui_MainWindow):
         if not puzzle.is_valid_sudoku():
             self.show_invalid_message()
         else:
-            solution = puzzle.solve()
-            print(solution)
+            is_solved = puzzle.solve()
+            if is_solved:
+                self.complete_sudoku(puzzle.values)
+                QMessageBox.information(
+                    self,
+                    "Sudoku solved",
+                    "Your sudoku puzzle is solved!",
+                    QMessageBox.Ok,
+                )
+
+    def complete_sudoku(self, values):
+        boxes = self.get_boxes()
+        for i in range(81):
+            boxes[i].setText(values[i])
 
 
 class Sudoku:
@@ -179,16 +193,6 @@ class Sudoku:
         uniques = set(subset)  # make them unique
         return len(subset) == len(uniques)
 
-    def hint(self):
-        possibilities = self.determine_possibilities()
-        for idx, possibility in enumerate(possibilities):
-            if len(possibility) == 1:
-                return (idx, possibility[0])
-
-    def solve(self):
-        possibilities = self.determine_possibilities()
-        return possibilities
-
     def determine_possibilities(self):
         """creates a list where every element contains a list of possible
         values for that position"""
@@ -198,7 +202,7 @@ class Sudoku:
             if self.values[i_pos]:
                 # when the value is already filled in the only possibility is that value
                 # possibilities.append([self.values[i_pos]])
-                possibilities.append([""])
+                possibilities.append([])
             else:
                 # all values that are not in the R, C or S are possible
                 i_row, i_col, i_sq = self.position_to_identifiers(i_pos)
@@ -212,64 +216,51 @@ class Sudoku:
                 pbx = [elem for elem in pbx if elem not in col]
                 pbx = [elem for elem in pbx if elem not in square]
 
-                # for i in range(1, 10)
-
-                #     sx = self.getsquare(sxi)  # haal de vierkantelementen op
-                #     # als het er al in zit gewoon continue naar de volgende i waarde
-                #     if i in cx:
-                #         continue
-                #     if i in rx:
-                #         continue
-                #     if i in sx:
-                #         continue
-                #     # i is dus een mogelijke waarde voor deze pos, maar is het de enigste mogelijke?
-                #     c = range(3)
-                #     r = range(3)
-                #     # we halen de twee andere kolomen in in dit vierkant op (over de hele sudoku)
-                #     if i_pos % 9 % 3 == 0:
-                #         c[0] = list()
-                #         c[1] = self.getcolumn(i_pos % 9 + 1)
-                #         c[2] = self.getcolumn(i_pos % 9 + 2)
-                #     elif i_pos % 9 % 3 == 1:
-                #         c[0] = self.getcolumn(i_pos % 9 - 1)
-                #         c[1] = list()
-                #         c[2] = self.getcolumn(i_pos % 9 + 1)
-                #     elif i_pos % 9 % 3 == 2:
-                #         c[0] = self.getcolumn(i_pos % 9 - 2)
-                #         c[1] = self.getcolumn(i_pos % 9 - 1)
-                #         c[2] = list()
-                #     # we halen de twee andere rijen in in dit vierkant op (over de hele sudoku)
-                #     if i_pos / 9 % 3 == 0:
-                #         r[0] = list()
-                #         r[1] = self.getrow(i_pos / 9 + 1)
-                #         r[2] = self.getrow(i_pos / 9 + 2)
-                #     elif i_pos / 9 % 3 == 1:
-                #         r[0] = self.getrow(i_pos / 9 - 1)
-                #         r[1] = list()
-                #         r[2] = self.getrow(i_pos / 9 + 1)
-                #     elif i_pos / 9 % 3 == 2:
-                #         r[0] = self.getrow(i_pos / 9 - 2)
-                #         r[1] = self.getrow(i_pos / 9 - 1)
-                #         r[2] = list()
-                #     # we beginnen te markeren waar de waarde i allemaal niet kan staan
-                #     u = 0
-                #     for pval in sx:
-                #         if pval < 10:
-                #             sx[u] = 10
-                #         u += 1
-                #     for n in range(3):
-                #         if i in c[n]:
-                #             sx[n] = 10
-                #             sx[3 + n] = 10
-                #             sx[6 + n] = 10
-                #         if i in r[n]:
-                #             sx[n * 3 : (n + 1) * 3] = [10, 10, 10]
-                #     # als we enkel nog onze eigen positie 'pos' over hebben zetten we de pbx list als unique element en breaken we de i-loop
-                #     if sx.count(10) == 8:  # we hebben een unieke
-                #         pbx = list()
-                #         pbx.append(i)
-                #         break
-                #     else:  # we hebben gewoon een mogelijkheid
-                #         pbx.append(i)
                 possibilities.append(pbx)
         return possibilities
+
+    def hint(self):
+        """returns the first possible position+value that can be filled in"""
+        possibilities = self.determine_possibilities()
+        for idx, possibility in enumerate(possibilities):
+            if len(possibility) == 1:
+                return (idx, possibility[0])
+
+    def is_solved_sudoku(self):
+        """a solved sudoku is a valid sudoku with 81 values filled in"""
+        if self.is_valid_sudoku():
+            subset = [x for x in self.values if x]  # keep non empty values
+            if len(subset) == 81:
+                return True
+        return False
+
+    def solve(self):
+        """a sudoku is solved by looking for remaining possible values per
+        field. if one possibility remains, this value is safely filled in.
+        if only cells of 2 or more possibilities remain, a 'guess' must first
+        be made to proceed"""
+        pre_solve_values = self.values[:]
+
+        i = 0
+        max_iter = 1000
+        while not self.is_solved_sudoku() and i < max_iter:
+            i += 1
+            possibilities = self.determine_possibilities()
+            for idx, possibility in enumerate(possibilities):
+                # if only one possibility exists: always fill it out
+                if len(possibility) == 1:
+                    self.values[idx] = possibility[0]
+
+        did_it_work = self.is_solved_sudoku()
+
+        if not did_it_work:
+            self.values = pre_solve_values
+
+        return did_it_work
+
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    mainwidget = mainwindow()
+    mainwidget.show()
+    sys.exit(app.exec_())
