@@ -59,7 +59,7 @@
      <number>0</number>
     </property>
    </widget>
-   <widget class="QPushButton" name="pushButton">
+   <widget class="QPushButton" name="btn_validate">
     <property name="geometry">
      <rect>
       <x>190</x>
@@ -2232,7 +2232,7 @@
      <number>0</number>
     </property>
    </widget>
-   <widget class="QPushButton" name="pushButton_2">
+   <widget class="QPushButton" name="btn_wipe">
     <property name="geometry">
      <rect>
       <x>10</x>
@@ -2245,7 +2245,7 @@
      <string>Wipe</string>
     </property>
    </widget>
-   <widget class="QPushButton" name="pushButton_3">
+   <widget class="QPushButton" name="btn_hint">
     <property name="geometry">
      <rect>
       <x>10</x>
@@ -2258,7 +2258,7 @@
      <string>Hint</string>
     </property>
    </widget>
-   <widget class="QPushButton" name="pushButton_4">
+   <widget class="QPushButton" name="btn_solve">
     <property name="geometry">
      <rect>
       <x>190</x>
@@ -2478,10 +2478,10 @@
   <tabstop>t78</tabstop>
   <tabstop>t79</tabstop>
   <tabstop>t80</tabstop>
-  <tabstop>pushButton_2</tabstop>
-  <tabstop>pushButton</tabstop>
-  <tabstop>pushButton_3</tabstop>
-  <tabstop>pushButton_4</tabstop>
+  <tabstop>btn_wipe</tabstop>
+  <tabstop>btn_validate</tabstop>
+  <tabstop>btn_hint</tabstop>
+  <tabstop>btn_solve</tabstop>
  </tabstops>
  <resources/>
  <connections>

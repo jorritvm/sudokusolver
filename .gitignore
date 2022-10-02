@@ -1,6 +1,6 @@
 # user defined
-src/venv
-src/old
+venv
+old
 
 
 # Byte-compiled / optimized / DLL files
