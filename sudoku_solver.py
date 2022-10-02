@@ -51,28 +51,6 @@ class mainwindow(QMainWindow, Ui_MainWindow):
             <p>Author: Jorrit Vander Mynsbrugge</p>""",
         )
 
-    def generate(self):
-        reply = QMessageBox.question(
-            self,
-            "Wipe",
-            "Are you sure you want to generate a new random puzzle?",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
-        )
-        if reply == QMessageBox.Yes:
-            self.generate_unsafe()
-
-    def generate_unsafe(self):
-        self.wipe_unsafe()
-
-        lines = open("puzzles.txt").read().splitlines()
-        random_puzzle = list(random.choice(lines))
-        if len(random_puzzle) == 81:
-            random_puzzle[:] = [x if x != "0" else "" for x in random_puzzle]
-            self.complete_sudoku(random_puzzle)
-        else:
-            self.generate_unsafe()  # recurse if we find a comment in the txt
-
     def get_boxes(self):
         """fetches all the qt line edit widgets in a list"""
         x = list()
@@ -84,6 +62,30 @@ class mainwindow(QMainWindow, Ui_MainWindow):
         """fetches all the values (str) from the qt line edit widgets in a list"""
         all_boxes = self.get_boxes()
         return [text_edit.text() for text_edit in all_boxes]  # returns strings
+
+    def generate(self):
+        """generate new sudoku puzzle with user confirmation"""
+        reply = QMessageBox.question(
+            self,
+            "Wipe",
+            "Are you sure you want to generate a new random puzzle?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        if reply == QMessageBox.Yes:
+            self.generate_unsafe()
+
+    def generate_unsafe(self):
+        """generate new sudoku puzzle without user confirmation"""
+        self.wipe_unsafe()
+
+        lines = open("puzzles.txt").read().splitlines()
+        random_puzzle = list(random.choice(lines))
+        if len(random_puzzle) == 81:
+            random_puzzle[:] = [x if x != "0" else "" for x in random_puzzle]
+            self.draw_sudoku(random_puzzle)
+        else:
+            self.generate_unsafe()  # recurse if we find a comment in the txt
 
     def wipe(self):
         """wipes the puzzle after user confirmation"""
@@ -98,6 +100,7 @@ class mainwindow(QMainWindow, Ui_MainWindow):
             self.wipe_unsafe()
 
     def wipe_unsafe(self):
+        """wipes the puzzle without user confirmation"""
         all_boxes = self.get_boxes()
         for box in all_boxes:
             box.clear()
@@ -132,7 +135,7 @@ class mainwindow(QMainWindow, Ui_MainWindow):
         else:
             idx, value = puzzle.hint()
 
-            if idx > 0:
+            if idx >= 0:
                 boxes = self.get_boxes()
                 boxes[idx].setText(value)
 
@@ -147,10 +150,13 @@ class mainwindow(QMainWindow, Ui_MainWindow):
         else:
             values = puzzle.solve()
             if puzzle.is_solved_sudoku():
-                self.complete_sudoku(values)
+                self.draw_sudoku(values)
                 self.solved_sudoku_message()
+            else:
+                self.unsolved_sudoku_message()
 
     def solved_sudoku_message(self):
+        """informs the user the puzzle is solved"""
         QMessageBox.information(
             self,
             "Sudoku solved",
@@ -158,7 +164,17 @@ class mainwindow(QMainWindow, Ui_MainWindow):
             QMessageBox.Ok,
         )
 
-    def complete_sudoku(self, values):
+    def unsolved_sudoku_message(self):
+        """informs the user the puzzle can't be solved"""
+        QMessageBox.critical(
+            self,
+            "Sudoku NOT solved",
+            "Your sudoku puzzle is too difficult for me to solve!",
+            QMessageBox.Ok,
+        )
+
+    def draw_sudoku(self, values):
+        """draws the values of the sudoku on the gui"""
         boxes = self.get_boxes()
         for i in range(81):
             boxes[i].setText(values[i])
@@ -259,17 +275,17 @@ class Sudoku:
             if len(possibility) == 1:
                 could_not_find_a_hint = False
                 self.values[idx] = possibility[0]
+                print((idx, possibility[0]))
                 return (idx, possibility[0])
         if could_not_find_a_hint:
             print("could_not_find_a_hint")  # debug - maak er qmsg van?
             print(possibilities)  # debug
-            return (0, 0)
+            return (-1, -1)
 
     def is_solved_sudoku(self):
         """a solved sudoku is a valid sudoku with 81 values filled in"""
         if self.is_valid_sudoku():
             subset = [x for x in self.values if x]  # keep non empty values
-            print("sudoku is valid" + str(len(subset)))
             if len(subset) == 81:
                 return True
         return False
@@ -288,8 +304,14 @@ class Sudoku:
             possibilities = self.determine_possibilities()
             for idx, possibility in enumerate(possibilities):
                 # if only one possibility exists: always fill it out
+                found_1 = False
                 if len(possibility) == 1:
                     self.values[idx] = possibility[0]
+                    found_1 = True
+                if not found_1:
+                    # sometimes the sudoku is too hard and you have to make a guess about one box before you can continue
+                    # todo: implement this with recursion
+                    pass
 
         if not self.is_solved_sudoku():
             self.values = pre_solve_values
