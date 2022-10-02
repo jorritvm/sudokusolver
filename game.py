@@ -1,4 +1,6 @@
 from http.client import OK
+from turtle import pos
+from winreg import REG_EXPAND_SZ
 from PyQt5.QtWidgets import QMainWindow, QMessageBox
 from PyQt5.QtGui import QIntValidator
 from gui import Ui_MainWindow
@@ -6,6 +8,7 @@ from gui import Ui_MainWindow
 
 class mainwindow(QMainWindow, Ui_MainWindow):
     def __init__(self, parent=None):
+        """constructs and initializes the UI"""
         super(mainwindow, self).__init__(parent)
         self.setupUi(self)
         self.append_ui()
@@ -13,6 +16,7 @@ class mainwindow(QMainWindow, Ui_MainWindow):
         self.setup_slots()
 
     def append_ui(self):
+        """tweak the UI some more (e.g. input validation)"""
         for box in self.get_boxes():
             box.setInputMask("D")
             # NOTE: because of the inputmask we don't need an int or regex validator anymore
@@ -22,6 +26,7 @@ class mainwindow(QMainWindow, Ui_MainWindow):
             # box.setValidator(digit_validator)
 
     def setup_slots(self):
+        """connects actions and buttons to the corresponding methods"""
         self.action_about.triggered.connect(self.about)
 
         self.action_wipe.triggered.connect(self.wipe)
@@ -30,24 +35,36 @@ class mainwindow(QMainWindow, Ui_MainWindow):
         self.action_validate.triggered.connect(self.validate)
         self.btn_validate.pressed.connect(self.validate)
 
+        self.action_hint.triggered.connect(self.hint)
+        self.btn_hint.pressed.connect(self.hint)
+
+        self.action_solve.triggered.connect(self.solve)
+        self.btn_solve.pressed.connect(self.solve)
+
     def about(self):
+        """displays the about dialog"""
         QMessageBox.about(
             self,
             "About Sudoku Solver",
-            "<h2>Sudoku Solver</h2><p>GPLv3 licensed - 2022<p>Sudoku Solver does what its name says, quickly solve your sudoku.</p><p>Author: Jorrit Vander Mynsbrugge</p>",
+            """<h2>Sudoku Solver</h2><p>GPLv3 licensed - 2022<p>Sudoku Solver 
+            does what its name says, quickly solve your sudoku.</p>
+            <p>Author: Jorrit Vander Mynsbrugge</p>""",
         )
 
     def get_boxes(self):
+        """fetches all the qt line edit widgets in a list"""
         x = list()
         for i in range(81):
             x.append(eval("self.t" + str(i)))
         return x
 
     def get_values(self):
+        """fetches all the values (str) from the qt line edit widgets in a list"""
         all_boxes = self.get_boxes()
         return [text_edit.text() for text_edit in all_boxes]  # returns strings
 
     def wipe(self):
+        """wipes the puzzle after user confirmation"""
         reply = QMessageBox.question(
             self,
             "Wipe",
@@ -61,6 +78,7 @@ class mainwindow(QMainWindow, Ui_MainWindow):
                 text_edit.clear()
 
     def validate(self):
+        """validates the puzzle and reports to the user"""
         puzzle = Sudoku(self.get_values())
         if puzzle.is_valid_sudoku():
             QMessageBox.information(
@@ -70,37 +88,49 @@ class mainwindow(QMainWindow, Ui_MainWindow):
                 QMessageBox.Ok,
             )
         else:
-            QMessageBox.critical(
-                self,
-                "Validation check",
-                "Your sudoku puzzle is no longer valid!",
-                QMessageBox.Ok,
-            )
+            self.show_invalid_message()
+
+    def show_invalid_message(self):
+        """shows the user the message their sudoku is invalid"""
+        QMessageBox.critical(
+            self,
+            "Validation check",
+            "Your sudoku puzzle is no longer valid!",
+            QMessageBox.Ok,
+        )
+
+    def hint(self):
+        """show the user a hint of the next correct value"""
+        puzzle = Sudoku(self.get_values())
+        if not puzzle.is_valid_sudoku():
+            self.show_invalid_message()
+        else:
+            idx, value = puzzle.hint()
+            print(f"position {idx} should get value {value}")  # todo: complete this
+
+    def solve(self):
+        """complets the puzzle automatically"""
+        puzzle = Sudoku(self.get_values())
+        if not puzzle.is_valid_sudoku():
+            self.show_invalid_message()
+        else:
+            solution = puzzle.solve()
+            print(solution)
 
 
 class Sudoku:
+    """this class represents the game & game functionality"""
+
     def __init__(self, values):
         self.values = values
-        # self.fix = self.createfix() # de vaste posities ophalen
 
-    def is_valid_sudoku(self):
-        """a sudoku puzzle is valid if the same number does not appear twice in a row, a column or a subsquare"""
-
-        valid = True
-        for i_row in range(9):
-            valid = valid and self.is_valid_nine(self.get_row(i_row))
-        for i_col in range(9):
-            valid = valid and self.is_valid_nine(self.get_column(i_col))
-        for i_sq in range(9):
-            valid = valid and self.is_valid_nine(self.get_square(i_sq))
-
-        return valid
-
-    def is_valid_nine(self, subset):
-        """a set of nine is valid if each number only appears once"""
-        subset = [x for x in subset if x]  # keep non empty values
-        uniques = set(subset)  # make them unique
-        return len(subset) == len(uniques)
+    def position_to_identifiers(self, i_pos):
+        """given a position in the puzzle, returns the row, column
+        and square identifier"""
+        i_row = int(i_pos / 9)
+        i_col = int(i_pos % 9)
+        i_sq = int(i_pos % 9 / 3) + 3 * int((i_pos / 27))  # magic maths
+        return (i_row, i_col, i_sq)
 
     def get_row(self, i, n=9):
         """returns first n values of row with index i"""
@@ -130,3 +160,116 @@ class Sudoku:
             for p in range(3):
                 x.append(self.values[offset + p])
         return x[:n]
+
+    def is_valid_sudoku(self):
+        """a sudoku puzzle is valid if the same number does not appear
+        twice in a row, a column or a subsquare"""
+        valid = True
+        for i_row in range(9):
+            valid = valid and self.is_valid_nine(self.get_row(i_row))
+        for i_col in range(9):
+            valid = valid and self.is_valid_nine(self.get_column(i_col))
+        for i_sq in range(9):
+            valid = valid and self.is_valid_nine(self.get_square(i_sq))
+        return valid
+
+    def is_valid_nine(self, subset):
+        """a set of nine is valid if each number only appears once"""
+        subset = [x for x in subset if x]  # keep non empty values
+        uniques = set(subset)  # make them unique
+        return len(subset) == len(uniques)
+
+    def hint(self):
+        possibilities = self.determine_possibilities()
+        for idx, possibility in enumerate(possibilities):
+            if len(possibility) == 1:
+                return (idx, possibility[0])
+
+    def solve(self):
+        possibilities = self.determine_possibilities()
+        return possibilities
+
+    def determine_possibilities(self):
+        """creates a list where every element contains a list of possible
+        values for that position"""
+        possibilities = list()
+
+        for i_pos in range(81):
+            if self.values[i_pos]:
+                # when the value is already filled in the only possibility is that value
+                # possibilities.append([self.values[i_pos]])
+                possibilities.append([""])
+            else:
+                # all values that are not in the R, C or S are possible
+                i_row, i_col, i_sq = self.position_to_identifiers(i_pos)
+
+                pbx = [str(x) for x in range(1, 10)]
+                row = self.get_row(i_row)
+                col = self.get_column(i_col)
+                square = self.get_square(i_sq)
+
+                pbx = [elem for elem in pbx if elem not in row]
+                pbx = [elem for elem in pbx if elem not in col]
+                pbx = [elem for elem in pbx if elem not in square]
+
+                # for i in range(1, 10)
+
+                #     sx = self.getsquare(sxi)  # haal de vierkantelementen op
+                #     # als het er al in zit gewoon continue naar de volgende i waarde
+                #     if i in cx:
+                #         continue
+                #     if i in rx:
+                #         continue
+                #     if i in sx:
+                #         continue
+                #     # i is dus een mogelijke waarde voor deze pos, maar is het de enigste mogelijke?
+                #     c = range(3)
+                #     r = range(3)
+                #     # we halen de twee andere kolomen in in dit vierkant op (over de hele sudoku)
+                #     if i_pos % 9 % 3 == 0:
+                #         c[0] = list()
+                #         c[1] = self.getcolumn(i_pos % 9 + 1)
+                #         c[2] = self.getcolumn(i_pos % 9 + 2)
+                #     elif i_pos % 9 % 3 == 1:
+                #         c[0] = self.getcolumn(i_pos % 9 - 1)
+                #         c[1] = list()
+                #         c[2] = self.getcolumn(i_pos % 9 + 1)
+                #     elif i_pos % 9 % 3 == 2:
+                #         c[0] = self.getcolumn(i_pos % 9 - 2)
+                #         c[1] = self.getcolumn(i_pos % 9 - 1)
+                #         c[2] = list()
+                #     # we halen de twee andere rijen in in dit vierkant op (over de hele sudoku)
+                #     if i_pos / 9 % 3 == 0:
+                #         r[0] = list()
+                #         r[1] = self.getrow(i_pos / 9 + 1)
+                #         r[2] = self.getrow(i_pos / 9 + 2)
+                #     elif i_pos / 9 % 3 == 1:
+                #         r[0] = self.getrow(i_pos / 9 - 1)
+                #         r[1] = list()
+                #         r[2] = self.getrow(i_pos / 9 + 1)
+                #     elif i_pos / 9 % 3 == 2:
+                #         r[0] = self.getrow(i_pos / 9 - 2)
+                #         r[1] = self.getrow(i_pos / 9 - 1)
+                #         r[2] = list()
+                #     # we beginnen te markeren waar de waarde i allemaal niet kan staan
+                #     u = 0
+                #     for pval in sx:
+                #         if pval < 10:
+                #             sx[u] = 10
+                #         u += 1
+                #     for n in range(3):
+                #         if i in c[n]:
+                #             sx[n] = 10
+                #             sx[3 + n] = 10
+                #             sx[6 + n] = 10
+                #         if i in r[n]:
+                #             sx[n * 3 : (n + 1) * 3] = [10, 10, 10]
+                #     # als we enkel nog onze eigen positie 'pos' over hebben zetten we de pbx list als unique element en breaken we de i-loop
+                #     if sx.count(10) == 8:  # we hebben een unieke
+                #         pbx = list()
+                #         pbx.append(i)
+                #         break
+                #     else:  # we hebben gewoon een mogelijkheid
+                #         pbx.append(i)
+                possibilities.append(pbx)
+        return possibilities
