@@ -1,3 +1,8 @@
+# user defined
+src/venv
+src/old
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
