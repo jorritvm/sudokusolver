@@ -126,8 +126,13 @@ class mainwindow(QMainWindow, Ui_MainWindow):
             self.show_invalid_message()
         else:
             idx, value = puzzle.hint()
-            boxes = self.get_boxes()
-            boxes[idx].setText(value)
+
+            if idx > 0:
+                boxes = self.get_boxes()
+                boxes[idx].setText(value)
+
+                if puzzle.is_solved_sudoku():
+                    self.solved_sudoku_message()
 
     def solve(self):
         """complets the puzzle automatically"""
@@ -135,15 +140,18 @@ class mainwindow(QMainWindow, Ui_MainWindow):
         if not puzzle.is_valid_sudoku():
             self.show_invalid_message()
         else:
-            is_solved = puzzle.solve()
-            if is_solved:
-                self.complete_sudoku(puzzle.values)
-                QMessageBox.information(
-                    self,
-                    "Sudoku solved",
-                    "Your sudoku puzzle is solved!",
-                    QMessageBox.Ok,
-                )
+            values = puzzle.solve()
+            if puzzle.is_solved_sudoku():
+                self.complete_sudoku(values)
+                self.solved_sudoku_message()
+
+    def solved_sudoku_message(self):
+        QMessageBox.information(
+            self,
+            "Sudoku solved",
+            "Your sudoku puzzle is solved!",
+            QMessageBox.Ok,
+        )
 
     def complete_sudoku(self, values):
         boxes = self.get_boxes()
@@ -241,14 +249,22 @@ class Sudoku:
     def hint(self):
         """returns the first possible position+value that can be filled in"""
         possibilities = self.determine_possibilities()
+        could_not_find_a_hint = True
         for idx, possibility in enumerate(possibilities):
             if len(possibility) == 1:
+                could_not_find_a_hint = False
+                self.values[idx] = possibility[0]
                 return (idx, possibility[0])
+        if could_not_find_a_hint:
+            print("could_not_find_a_hint")  # debug - maak er qmsg van?
+            print(possibilities)  # debug
+            return (0, 0)
 
     def is_solved_sudoku(self):
         """a solved sudoku is a valid sudoku with 81 values filled in"""
         if self.is_valid_sudoku():
             subset = [x for x in self.values if x]  # keep non empty values
+            print("sudoku is valid" + str(len(subset)))
             if len(subset) == 81:
                 return True
         return False
@@ -270,12 +286,10 @@ class Sudoku:
                 if len(possibility) == 1:
                     self.values[idx] = possibility[0]
 
-        did_it_work = self.is_solved_sudoku()
-
-        if not did_it_work:
+        if not self.is_solved_sudoku():
             self.values = pre_solve_values
 
-        return did_it_work
+        return self.values
 
 
 if __name__ == "__main__":
