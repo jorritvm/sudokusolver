@@ -60,13 +60,18 @@ class mainwindow(QMainWindow, Ui_MainWindow):
             QMessageBox.No,
         )
         if reply == QMessageBox.Yes:
-            self.wipe_unsafe()
+            self.generate_unsafe()
 
-            lines = open("puzzles.txt").read().splitlines()
-            random_puzzle = list(random.choice(lines))
+    def generate_unsafe(self):
+        self.wipe_unsafe()
+
+        lines = open("puzzles.txt").read().splitlines()
+        random_puzzle = list(random.choice(lines))
+        if len(random_puzzle) == 81:
             random_puzzle[:] = [x if x != "0" else "" for x in random_puzzle]
-
             self.complete_sudoku(random_puzzle)
+        else:
+            self.generate_unsafe()  # recurse if we find a comment in the txt
 
     def get_boxes(self):
         """fetches all the qt line edit widgets in a list"""
