@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QMainWindow
+from PyQt5.QtWidgets import QMainWindow, QMessageBox
 from gui import Ui_MainWindow
 
 
@@ -11,8 +11,16 @@ class mainwindow(QMainWindow, Ui_MainWindow):
         self.setupslots()
 
     def setupslots(self):
+        self.action_about.triggered.connect(self.about)
         self.action_wipe.triggered.connect(self.wipe)
         self.btn_wipe.pressed.connect(self.wipe)
+
+    def about(self):
+        QMessageBox.about(
+            self,
+            "About Sudoku Solver",
+            "<h2>Sudoku Solver</h2><p>GPLv3 licensed - 2022<p>Sudoku Solver does what its name says, quickly solve your sudoku.</p><p>Author: Jorrit Vander Mynsbrugge</p>",
+        )
 
     def get_boxes(self):
         x = list()
