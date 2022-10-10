@@ -1,3 +1,5 @@
+"""main file for sudoku solver"""
+
 import sys
 import random
 from PyQt5.QtWidgets import QApplication, QMainWindow, QMessageBox
@@ -5,6 +7,8 @@ from gui import Ui_MainWindow
 
 
 class mainwindow(QMainWindow, Ui_MainWindow):
+    """UI for the game"""
+
     def __init__(self, parent=None):
         """constructs and initializes the UI"""
         super(mainwindow, self).__init__(parent)
@@ -62,6 +66,12 @@ class mainwindow(QMainWindow, Ui_MainWindow):
         """fetches all the values (str) from the qt line edit widgets in a list"""
         all_boxes = self.get_boxes()
         return [text_edit.text() for text_edit in all_boxes]  # returns strings
+
+    def draw_sudoku(self, values):
+        """draws the values of the sudoku on the gui"""
+        boxes = self.get_boxes()
+        for i in range(81):
+            boxes[i].setText(values[i])
 
     def generate(self):
         """generate new sudoku puzzle with user confirmation"""
@@ -141,16 +151,27 @@ class mainwindow(QMainWindow, Ui_MainWindow):
 
                 if puzzle.is_solved_sudoku():
                     self.solved_sudoku_message()
+            else:
+                self.show_no_hint_message()
+
+    def show_no_hint_message(self):
+        """shows the user the message there are no straightforward hints"""
+        QMessageBox.critical(
+            self,
+            "Hint",
+            "Your next sudoku move is not a clear call. Make a guess and go on.",
+            QMessageBox.Ok,
+        )
 
     def solve(self):
-        """complets the puzzle automatically"""
+        """completes the puzzle automatically"""
         puzzle = Sudoku(self.get_values())
         if not puzzle.is_valid_sudoku():
             self.show_invalid_message()
         else:
-            values = puzzle.solve()
-            if puzzle.is_solved_sudoku():
-                self.draw_sudoku(values)
+            success = puzzle.solve()
+            if success:
+                self.draw_sudoku(puzzle.values)
                 self.solved_sudoku_message()
             else:
                 self.unsolved_sudoku_message()
@@ -172,12 +193,6 @@ class mainwindow(QMainWindow, Ui_MainWindow):
             "Your sudoku puzzle is too difficult for me to solve!",
             QMessageBox.Ok,
         )
-
-    def draw_sudoku(self, values):
-        """draws the values of the sudoku on the gui"""
-        boxes = self.get_boxes()
-        for i in range(81):
-            boxes[i].setText(values[i])
 
 
 class Sudoku:
@@ -243,7 +258,8 @@ class Sudoku:
 
     def determine_possibilities(self):
         """creates a list where every element contains a list of possible
-        values for that position"""
+        values for that position,
+        returns False if some fields have no more possibilities"""
         possibilities = list()
 
         for i_pos in range(81):
@@ -264,22 +280,23 @@ class Sudoku:
                 pbx = [elem for elem in pbx if elem not in col]
                 pbx = [elem for elem in pbx if elem not in square]
 
+                if len(pbx) == 0:
+                    return False
+
                 possibilities.append(pbx)
         return possibilities
 
     def hint(self):
-        """returns the first possible position+value that can be filled in"""
+        """returns the first possible position + value that can be filled in"""
         possibilities = self.determine_possibilities()
         could_not_find_a_hint = True
         for idx, possibility in enumerate(possibilities):
             if len(possibility) == 1:
                 could_not_find_a_hint = False
                 self.values[idx] = possibility[0]
-                print((idx, possibility[0]))
+                # print((idx, possibility[0]))
                 return (idx, possibility[0])
         if could_not_find_a_hint:
-            print("could_not_find_a_hint")  # debug - maak er qmsg van?
-            print(possibilities)  # debug
             return (-1, -1)
 
     def is_solved_sudoku(self):
@@ -290,33 +307,62 @@ class Sudoku:
                 return True
         return False
 
-    def solve(self):
+    def solve(self, i = 0):
         """a sudoku is solved by looking for remaining possible values per
         field. if one possibility remains, this value is safely filled in.
         if only cells of 2 or more possibilities remain, a 'guess' must first
-        be made to proceed"""
-        pre_solve_values = self.values[:]
+        be made to proceed, when such a guess is made, the sudoku can be 'bust' 
+        in which case we return False
+        
+        return true if solve was successfull, false otherwise"""
+        pre_solve_values = self.values[:] # copy by value
 
-        i = 0
-        max_iter = 1000
-        while not self.is_solved_sudoku() and i < max_iter:
-            i += 1
+        while not self.is_solved_sudoku():
             possibilities = self.determine_possibilities()
+            
+            # if the sudoku is bust return False
+            if not possibilities:
+                return False
+          
+            # verify all possibilities
+            need_branch = True
             for idx, possibility in enumerate(possibilities):
                 # if only one possibility exists: always fill it out
-                found_1 = False
                 if len(possibility) == 1:
                     self.values[idx] = possibility[0]
-                    found_1 = True
-                if not found_1:
-                    # sometimes the sudoku is too hard and you have to make a guess about one box before you can continue
-                    # todo: implement this with recursion
-                    pass
+                    need_branch = False
+            
+            # sometimes the sudoku is too hard and we could not fill out 
+            # a single value (all boxes have more than 1 possibility)
+            # we now need to make a choice 
+            if need_branch:
+                # look for the smallest group of possibilities > 1
+                group_size = 10
+                for idx, possibility in enumerate(possibilities):
+                    if 1 < len(possibility) < group_size:
+                        group_size = len(possibility)
+                        branch_id = idx
+                        branch_possibilities = possibility
 
+                # branch and go depth first
+                branch_values = self.values[:]
+                for branch_possibility in branch_possibilities:
+                    branch_values[branch_id] = branch_possibility
+                    puzzle_branch = Sudoku(branch_values[:])
+                    success = puzzle_branch.solve()
+                    if success and puzzle_branch.is_solved_sudoku():
+                        self.values = puzzle_branch.values
+                        break
+                    else:
+                        pass
+                        # print("bust branch")
+
+        # return success bool
         if not self.is_solved_sudoku():
             self.values = pre_solve_values
-
-        return self.values
+            return False
+        else:
+            return True
 
 
 if __name__ == "__main__":
